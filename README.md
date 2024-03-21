@@ -1,11 +1,6 @@
-# Climate and phenological indices to study extreme springs in Switzerland since 1763
+# Phenological indices in Switzerland since 1763
 
-Historical sources report manifold on hazardous past climate and weather events that had considerable impacts on society. Studying changes in their occurrence or mechanisms behind such events is however hampered by a lack of spatially and temporally complete weather information. For Switzerland, we created a daily high-resolution (1x1 km$^2$) reconstruction of temperature and precipitation fields from 1763 to 1960, that forms together with present-day meteorological fields a 258-year-long gridded data to study longer-term climate and past extreme events. Based on this dataset, we study changes in climate indices and phenological reconstructions in Switzerland since 1763 focusing on the spring season. The spring season is particularly relevant since weather conditions in spring can delay vegetation and create substantial damage due to for example late cold weather events. 
+Evaluation of phenological models based on daily mean temperatures and of calibration periods between 1961 to 2020 to reconstruct historical phenology since 1763.
 
-Climate indices and phenological reconstructions show few changes in the mean during the first 200 years, but climate change signals clearly emerge in all indices in the most recent period. We evaluate the climate and phenological indices for three cases of extreme spring weather conditions, an unusually warm spring, late frost events, and three late and cold springs. Warm springs are much more frequent in the 21st century, but also in 1862 a very warm and early spring occurred. Spring temperatures, however, do not agree across the different datasets on how anomalously warm the spring was. In 1785, 1837, and 1853, three spring onsets occurred especially late with historical sources reporting for example prolonged lake freezing. The mean phenological phase of these three late springs was on average 20 days later compared to the mean of 1871 to 1900. Two of these springs show typical wet and cold conditions with more cyclonic weather conditions over Western and Central Europe. The spring of 1785 on the contrary shows dry and cold conditions. More high pressure and easterly weather types were registered and atmospheric fields show a pronounced trough over Europe advecting cold air from northern regions. 
+> More information will follow.
 
-Studying such historical events is valuable since similar atmospheric conditions can also nowadays lead to cold springs affecting vegetation growth and agricultural production. 
-
-> Add information on submitted article and citations of data sets.
-
-![](https://github.com/imfeldn/swiss_pheno/blob/9050277207a75baa4151e755d61afafd1c17bc18/manuscript/figures/Figure_Phenomaps_2023-08-10.png)
