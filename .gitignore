@@ -9,6 +9,9 @@ nohup.out
 # R package files
 .Rbuildignore
 
+# Old code
+/old/
+
 # Project Data files
 data/01_climate_indices/wsdi/qtemp_th09_1871-1900.RData
 data/01_climate_indices/wsdi/WSDI_season_1763-2020_2023-07-26.nc

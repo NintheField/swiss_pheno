@@ -1,110 +1,108 @@
-####### EXTRACT TEMPERATURE DATA FROM CLOSEST GRID CELLS FOR SELECTED SERIES #############
+# Extract temperature data from four closest grid cell
+# Calculate mean temperature based on weights derived from topographic differences between series and grid cells
 
-rm(list=ls())
-
-#### packages
+# packages
 library(ncdf4)
-library(stats)
-library(geosphere)
+#library(stats)
+#library(geosphere)
 
-#### directories
+# directories
 indir_nc <- "../swiss_recon/temp/"
 
-#### select classes
-classes <- "123"
+# functions
+source("R/helpfuns.R")
 
+# set variables
+classes <- "1234_longseries_filled"
+pv <- "mpica13d"
 yrs <- 1951:2020
 nyr <- length(yrs)
 
-### read grid data
+# read gridded data
 ft <- nc_open(paste(indir_nc,"CH_temp_EnKF_1951-01-01-1951-12-31.nc",sep="")) # nonly for coordinates
 lon <- ft$dim[[2]]$vals
 lat <- ft$dim[[3]]$vals
 nc_close(ft)
 
-### Umrechnen Gitterdaten in WGS84
-londegb <- matrix(NA,nrow=length(lon),ncol=length(lat))
-latdegb <- matrix(NA,nrow=length(lon),ncol=length(lat))
-Ep <- (lon-2600000)/1000000
-Np <- (lat-1200000)/1000000
+lonmat <- matrix(rep(lon,length(lat)),nrow=length(lon),ncol=length(lat))
+latmat <- matrix(rep(lat,each = length(lon)),nrow=length(lon),ncol=length(lat))
 
-for (i in 1:length(lon)){for(j in 1:length(lat)){
-  londegb[i,j] <- (2.6779094+4.728982*Ep[i]+0.791484*Ep[i]*Np[j]+0.1306*Ep[i]*(Np[j]^2)-0.0436*(Ep[i]^3))*100/36
-  latdegb[i,j] <- (16.9023892+3.238272*Np[j]-0.270978*(Ep[i]^2)-0.002528*(Np[j]^2)-0.0447*(Ep[i]^2)*Np[j]-0.0140*(Np[j]^3))*100/36
-}}
+# topo
+file <- "../swiss_arm/code/data_input/topo.swiss02_ch01r.swisscors.nc"
+nc <- nc_open("../swiss_arm/code/data_input/topo.swiss02_ch01r.swisscors.nc")
+topo <- ncvar_get(nc,"height")
 
+Ntopo <- ncvar_get(nc,"chy") + 1000000
+Etopo <- ncvar_get(nc,"chx") + 2000000
 
-### list phenophases for extraction
-phenovals <- c( "mprua65d", "maesh13d","mfags13d")#,"mcora65d","mcora13d","manen65d","mtaro65d","mtusf65d","mcarp65d","mlard13d")
-pv <- phenovals[1]
+# read pheno file
+pheno_file <- paste0("data-raw/pheno_prep/pheno_dat_",pv,"_class",cllps(classes),".rds")
+pheno_sel <- readRDS(pheno_file)
 
-for(pv in phenovals){
+# extract station temperatures
+meteo_dat <- array(NA,dim=c(nrow(pheno_sel),365))
+selyrs <- unique(pheno_sel$reference_year)
+tind_start <- 1:263
 
-  print(pv)
+for (yr in selyrs){
+  print(yr)
 
-  station_list_sel <- readRDS(paste0("data-raw/02_pheno_net/stations_",pv,"_class",classes,".rds"))
+  # calculate the topo weights for every staation of reference year
+  ahelp <- which(pheno_sel$reference_year== yr)
+  pheno_sel_yr <- pheno_sel[ahelp,]
+  nstat <- nrow(pheno_sel_yr)
+  obsE <- pheno_sel_yr$obsE
+  obsN <- pheno_sel_yr$obsN
+  obsnam <- as.character(pheno_sel_yr$nat_abbr)
+  obsalt <- pheno_sel_yr$alt
 
-  nstat <- nrow(station_list_sel)
-  obslon <- station_list_sel$Laengengrad
-  obslat <- station_list_sel$Breitengrad
-  obsnam <- as.character(station_list_sel$Abk.)
-  obsalt <- station_list_sel$Stationshoehe
-
-  ################################################
-  ### get temperature series for every station
-  ################################################
-  sellon <- rep(NA,nstat)
-  sellat <- rep(NA,nstat)
+  sellon <- matrix(NA,nrow=nstat,ncol=4)
+  sellat <- matrix(NA,nrow=nstat,ncol=4)
+  topo_wd <- matrix(NA, nrow = nstat, ncol = 4)
 
   for (a in 1:nstat){
-    dist <- (((obslon[a]-londegb)^2)+((0.682*(obslat[a]-latdegb))^2)^0.5)
-    sellon[a] <- which(dist==min(dist),arr.ind=T)[1]
-    sellat[a] <- which(dist==min(dist),arr.ind=T)[2]
+    dist <- (((obsE[a]-lonmat)^2)+(((obsN[a]-latmat))^2))^0.5
+    sellon[a,] <- arrayInd(which(dist %in% dist[order(dist)[1:4]]),dim(dist))[1:4,1]
+    sellat[a,] <- arrayInd(which(dist %in% dist[order(dist)[1:4]]),dim(dist))[1:4,2]
+    topodiff <- abs(sapply(1:4, function(x) topo[sellon[a,x],sellat[a,x]]) - obsalt[a])
+    topo_wd[a,] <- topodiff/sum(topodiff)
   }
 
-  ### extract station temperatures
-  meteo_dat <- array(NA,dim=c(nstat,nyr + 1,365))
-  startyr <- 1950
-  tind_yrend2 <- 264:365
+  # get the data for the current year
+  ft <- nc_open(paste(indir_nc,"CH_temp_TabsD_",yr,".nc",sep=""))
+  ty <- ncvar_get(ft,varid="TabsD")
+  nc_close(ft)
 
-  for (yr in startyr:2020){
-    print(yr)
+  tind_yrend <- (dim(ty)[3] - 101):dim(ty)[3]
 
-    if (yr>1960){
-
-      ft <- nc_open(paste(indir_nc,"CH_temp_TabsD_",yr,".nc",sep=""))
-      ty <- ncvar_get(ft,varid="TabsD")
-      tind_yrend <- (dim(ty)[3] - 101):dim(ty)[3]
-      tind_start <- 1:263
-
-      for (a in 1:nstat){
-        meteo_dat[a,yr - startyr + 1,(length(tind_yrend)+1):365] <- round(ty[sellon[a],sellat[a],tind_start],2) # write the data from the current spring to doy 102 from current year
-        if(yr < 2020) meteo_dat[a,yr - startyr + 2,1:length(tind_yrend)] <- round(ty[sellon[a],sellat[a],tind_yrend],2) ## write the data from the current winter to doy 1 of next year
-      }
-      nc_close(ft)
-    } else {
-
-      ft <- nc_open(paste(indir_nc,"CH_temp_EnKF_",yr,"-01-01-",yr,"-12-31.nc",sep=""))
-      ty <- ncvar_get(ft,varid="temp")
-      tind_yrend <- (dim(ty)[3] - 101):dim(ty)[3]
-      tind_start <- 1:263
-
-      for (a in 1:nstat){
-        meteo_dat[a,yr - startyr + 1,(length(tind_yrend)+1):365] <- round(ty[sellon[a],sellat[a],tind_start],2) # write the data from the current spring to doy 102 from current year
-        meteo_dat[a,yr - startyr + 2,1:length(tind_yrend)] <- round(ty[sellon[a],sellat[a],tind_yrend],2) ## write the data from the current winter to doy 1 of next year
-      }
-
-      nc_close(ft)
-    }
+  for (a in 1:nstat){
+    temp_wd <- rowSums(sapply(1:4, function(x) ty[sellon[a,x],sellat[a,x],tind_start] * topo_wd[a,x] ))
+    meteo_dat[ahelp[a],(length(tind_yrend)+1):365] <- round(temp_wd,2) # write the data from the current spring to doy 102 from current year
   }
 
-  # remove first year since it is not needed
-  meteo_dat <- meteo_dat[,2:dim(meteo_dat)[2],]
-  rownames(meteo_dat) <- obsnam
+  # get the data for the winter of the year before
+  if(yr == 1961){
+    ft <- nc_open(paste(indir_nc,"CH_temp_EnKF_",yr-1,"-01-01-",yr-1,"-12-31.nc",sep=""))
+    ty <- ncvar_get(ft,varid="temp")
+  } else{
+    ft <- nc_open(paste(indir_nc,"CH_temp_TabsD_",yr-1,".nc",sep=""))
+    ty <- ncvar_get(ft,varid="TabsD")
+  }
+  nc_close(ft)
 
-  saveRDS(
-    meteo_dat,
-    file = paste0("data-raw/02_pheno_net/meteo_",pv,"_class",classes,".rds"),
-    compress = "xz"
-  )
+  tind_yrend <- (dim(ty)[3] - 101):dim(ty)[3]
+
+  for (a in 1:nstat){
+    temp_wd <- rowSums(sapply(1:4, function(x) ty[sellon[a,x],sellat[a,x],tind_yrend] * topo_wd[a,x] ))
+    meteo_dat[ahelp[a],1:length(tind_yrend)] <- round(temp_wd,2) ## write the data from the current winter to doy 1 of next year
+  }
 }
+
+rownames(meteo_dat) <- as.character(pheno_sel$nat_abbr)
+
+saveRDS(
+  meteo_dat,
+  file = paste0("data-raw/pheno_prep/meteo_dat_",pv,"_class",classes,".rds"),
+  compress = "xz"
+)
+
